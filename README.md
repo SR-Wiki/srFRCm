@@ -30,6 +30,9 @@ The framework addresses these problems with **single-frame FRC (sFRC)** and **si
 
 ## Installation
 
+### Tested platform
+  - Windows 10, MATLAB R2022b
+
 ### Requirements
 
 The current MATLAB implementation uses functions from:
@@ -47,7 +50,7 @@ Clone or download the repository and add the top-level source, utility and demo 
 ```matlab
 git clone https://github.com/SR-Wiki/srFRCm.git
 root='path/to/srFRCm';
-addpath(fullfile(root,'src')); addpath(fullfile(root,'utils')); addpath(fullfile(root,'demos'));
+addpath(fullfile(root,'src')); addpath(fullfile(root,'src/Utils')); addpath(fullfile(root,'src/fSNR'));
 ```
 
 You can optionally save the path for future MATLAB sessions:
