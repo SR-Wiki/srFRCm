@@ -9,13 +9,12 @@ addpath(fullfile(rootDir,'src'));
 addpath(fullfile(rootDir,'src','Utils'));
 addpath(fullfile(rootDir,'src','Utils'),'-end');
 
-rootDir='C:\Users\dell\Downloads';
 inputFile=fullfile(rootDir,'example_data','Fig3a_Raw.tif');
 % Alternative input: fullfile(rootDir,'example_data','Fig2b_SD-SIM.tif');
 
-pixelSize=38.2/1000; % um
+pixelSize=60/1000; % um
 singleFrame=false;
-threshold='1/7 hard threshold'; % Alternative: '3-sigma'.
+threshold='1/7 hard threshold'; 
 % Optional demo controls; these are not numerical-function parameters.
 plotMode='auto'; % Show only currentFrame, with or without batching (plus the next frame in paired mode).
 saveResults=true;

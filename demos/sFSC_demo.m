@@ -7,13 +7,13 @@ rootDir=fileparts(demoDir);
 addpath(fullfile(rootDir,'src'));
 addpath(fullfile(rootDir,'src','Utils'));
 % Modify dataRoot when the TIFF files are stored outside the repository.
-% rootDir='C:\Users\dell\Downloads';
+
 inputFile=fullfile(rootDir,'example_data','Fig4i_1.tif');
 secondInputFile=fullfile(rootDir,'example_data','Fig4i_2.tif');
 pixelSize=[20 20 60]/1000; % [x y z], um
 singleFrame=true;
-threshold='1/7 hard threshold'; % Alternative: '3-sigma'.
-zSampling=false; % Set true to enable manually.
+threshold='1/7 hard threshold'; 
+zSampling=true; % typically false, Set true here to mitigate inter-slice inconsistency
 % Optional demo controls; these are not numerical-function parameters.
 plotFittingCurve=false;
 saveResults=true;

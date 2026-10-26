@@ -21,16 +21,12 @@ saveResults=true;
 batchProcessing=false;
 currentFrame=1; % One-based; always selects the preview; selects computation too when batchProcessing=false.
 parallel=true; % Serial fallback without Parallel Computing Toolbox.
-% Use the first frame (single) or first pair (paired) for Fig.2h comparison.
-% Match the former combined2_frc_correction window and drift settings.
-if singleFrame
-    blocksize=64; skip=2; motionCorrection=false;
-else
-    blocksize=128; skip=4; motionCorrection=true;
-end
+blocksize=64; % size of rolling block
+skip=2; % skip neighboring calculation for speedup
+motionCorrection=false; % only for double-frame calculation
+
 
 plotResults=resolve_demo_plot(plotMode,batchProcessing);
-
 %% 2. Numerical computation
 % One stack: singleFrame=true analyses each frame independently.
 % singleFrame=false analyses adjacent overlapping pairs: (1,2), (2,3), ...
