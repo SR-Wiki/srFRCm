@@ -39,6 +39,8 @@ function [FSCXY, FSCZ] = sFSC(im, varargin)
 %                      samples, E_DRI, fitInfo, parameters, and summary.
 %                      E_DRI is a relative fraction; summary.E_DRI_percent is percent.
 %                      Unavailable resolution and fit-error values are NaN.
+%                      FSCZ.computationSeconds and stageComputationSeconds
+%                      report numerical timing before any demo plots/export.
 % -----------------------------------------------
 % Notes:
 %   Inputs are converted to single and divided by their maximum before sampling.
@@ -84,6 +86,8 @@ params.numCones = 5;
 params.threshold = '1/7 hard threshold';
 params.progress=true;
 params.motionCorrection=false;
+computationTic=tic;
+lateralTic=computationTic; % Includes input preparation and lateral estimation.
 im=normalize_image(im);
 if ~isempty(varargin) && isnumeric(varargin{1})
     im=cat(4,im,normalize_image(varargin{1})); varargin=varargin(2:end);
@@ -180,6 +184,7 @@ if strcmp(params.xyMode, 'slice')
         report_missing_lateral(extrapolationRequired, params);
         FSCXY.xyResolution = NaN;
         FSCZ=unavailable_result(lateralAttempted,originalParameters);
+        FSCZ=attach_sfsc_timing(FSCZ,computationTic,toc(lateralTic),0);
         return;
     end
     FSCXY.xyResolution = minRes;
@@ -197,6 +202,7 @@ else
     if ~isfinite(FSCXY.xyResolution)
         report_missing_lateral(extrapolationRequired, params);
         FSCZ=unavailable_result(lateralAttempted,originalParameters);
+        FSCZ=attach_sfsc_timing(FSCZ,computationTic,toc(lateralTic),0);
         return;
     end
 end
@@ -219,6 +225,8 @@ if selectedExtrapolated
 end
 fprintf('XY Resolution = %.3f nm\n', FSCXY.xyResolution);
 
+lateralSeconds=toc(lateralTic);
+axialTic=tic;
 %% Axial resolution
 fprintf('sFSC - axial: estimating resolution with DRI...\n');
 analysisPixelSize = params.pixelSize;
@@ -266,6 +274,7 @@ FSCZ.summary=summary;
 FSCZ.parameters=originalParameters;
 FSCZ.fitInfo=driInfo;
 FSCZ.E_DRI_guidance=guidance;
+FSCZ=attach_sfsc_timing(FSCZ,computationTic,lateralSeconds,toc(axialTic));
 
 end
 
@@ -293,4 +302,15 @@ axial=struct('zResolution',NaN,'E_DRI',NaN,'summary',summary,...
     'parameters',parameters,'E_DRI_guidance',guidance,...
     'zSamplingEnabled',parameters.zSampling,'interpretationNote','');
 fprintf('E_DRI unavailable (%s); %s\n',state,guidance);
+end
+
+function result=attach_sfsc_timing(result,totalTic,lateral,axial)
+% Lateral includes input preparation; axial includes Z processing, FFT and DRI.
+% The total ends before any demo plotting or export.
+result.computationSeconds=toc(totalTic);
+result.elapsedSeconds=result.computationSeconds;
+result.stageComputationSeconds=struct('lateral',lateral,'axial',axial);
+fprintf('sFSC - numerical computation time: %.3f s (excludes demo plotting and export).\n',...
+    result.computationSeconds);
+fprintf('  lateral: %.3f s; axial: %.3f s\n',lateral,axial);
 end
