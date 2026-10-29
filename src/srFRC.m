@@ -69,7 +69,7 @@ function result = srFRC(im,varargin)
 %   Rolling correlations use the chosen primary criterion, followed when needed
 %   by 5-sigma x 0.6 then 2-sigma x 1.5. Local curves are not extrapolated.
 %   This function does not plot or save files. Demo-controlled exports use results/;
-%   demo plots show only currentFrame with batchProcessing true or false.
+%   demo plots show the first computed frame/pair when batching, or the selected result otherwise.
 %   srFRC numerical helpers live in src/fSNR; map, modeling, image and
 %   reporting helpers live in src/Utils.
 %   No separate srFRC_support or repository-root utils folder is needed.
@@ -98,8 +98,8 @@ params=read_params(params,varargin);
 params.threshold=correlation_threshold(params.threshold);
 [params,ratios]=background_settings(params);
 if params.monitorChange
-    fprintf(['srFRC - background mode: monitorChange=true disables adaptiveBackground. ',...
-        'Comparing Otsu multipliers 0.8, 1.0, and 1.2; backgroundIntensity is ignored.\n']);
+    fprintf(['srFRC - background monitoring enabled. ',...
+        'Absolute background thresholds are printed for each frame/pair; backgroundIntensity is ignored.\n']);
 end
 if ~isscalar(params.pixelSize) || ~isfinite(params.pixelSize) || params.pixelSize<=0
     error('srFRC:InvalidPixelSize','Enter a positive, finite pixelSize in um.');
@@ -113,6 +113,11 @@ computationTic=tic; % Numerical computation only; srFRC never draws or exports.
 im=normalize_image(im);
 [h,w,frames]=size(im);
 selected=select_stack_frames(frames,params.singleFrame,params.batchProcessing,params.currentFrame);
+% Keep currentFrame in output metadata for compatibility with plotting
+% helpers from older releases. In batch mode it is *not* an input
+% selector: all frames/pairs are computed, and 1 means preview the
+% first computed result. Never use a user-supplied currentFrame in batch.
+if params.batchProcessing, params.currentFrame=1; end
 count=numel(selected);
 if count<1, error('srFRC:ImagePairRequired','Paired mode requires at least two frames.'); end
 maps=zeros(h,w,count,numel(ratios),'single'); rows=cell(count*numel(ratios),1);
@@ -185,11 +190,16 @@ result.frameComputationSeconds=frameComputationSeconds;
 fprintf('srFRC - numerical computation time: %.3f s (excludes plotting and export).\n',...
     result.computationSeconds);
 for groupIndex=1:numel(ratios)
-    fprintf('  %s: %.3f s\n',result.backgroundGroups(groupIndex).name,...
+    fprintf('  Background group %d: %.3f s\n',groupIndex,...
         groupComputationSeconds(groupIndex));
+    for frameIndex=1:count
+        row=result.summary((groupIndex-1)*count+frameIndex);
+        fprintf('    %s: Background threshold = %.2f (0-255)\n',...
+            row.frame,result.backgroundThresholds(frameIndex,groupIndex));
+    end
 end
-fprintf('srFRC - completed %d background group(s), %d frame/pair result(s) per group: %s.\n',...
-    result.backgroundCount,count,strjoin({result.backgroundGroups.name},', '));
+fprintf('srFRC - completed %d background group(s), %d frame/pair result(s) per group.\n',...
+    result.backgroundCount,count);
 end
 
 function assert_srfrc_dependency_paths(supportFolder)

@@ -33,11 +33,11 @@ for outputIndex=1:numel(selected)
         setting=row.background_setting;
         ax=subplot(1,settings,settingIndex,'Parent',fig);
         data=result.maps(:,:,frame,settingIndex);
-        draw_map(ax,data,colors,limits,setting,row.background_threshold);
+        draw_map(ax,data,colors,limits,label,row.background_threshold);
         if ~isempty(directory)
             filename=fullfile(directory,['srFRC_' label '_' setting '_resolution-map.png']);
             save_preview(filename,data,colors,limits,...
-                ['srFRC - resolution map - ' label ' - ' setting],row.background_threshold);
+                ['srFRC - resolution map - ' label],row.background_threshold);
         end
     end
     if monitor

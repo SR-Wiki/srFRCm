@@ -17,7 +17,7 @@ function FRC = sFRC(im,varargin)
 %                      {default: '1/7 hard threshold'}
 %   motionCorrection   Align paired frames before correlation. {default: false}
 %   batchProcessing    Analyse all frames/pairs. {default: true}
-%                      If false, analyse currentFrame only.
+%                      If false, analyse currentFrame only; batch mode ignores it.
 %   currentFrame       One-based frame index for an individual run. {default: 1}
 %                      Paired mode also requires the following frame.
 % -----------------------------------------------
@@ -63,6 +63,11 @@ end
 if ndims(im)>3, error('sFRC:InvalidStack','Expected (Y,X) or (Y,X,T).'); end
 im=normalize_image(im);
 selected=select_stack_frames(size(im,3),params.singleFrame,params.batchProcessing,params.currentFrame);
+% Keep currentFrame in output metadata for compatibility with plotting
+% helpers from older releases. In batch mode it is *not* an input
+% selector: all frames/pairs are computed, and 1 means preview the
+% first computed result. Never use a user-supplied currentFrame in batch.
+if params.batchProcessing, params.currentFrame=1; end
 count=numel(selected);
 if count<1, error('sFRC:ImagePairRequired','Paired mode needs at least two stack frames.'); end
 curves=cell(1,count); rows=cell(1,count);
