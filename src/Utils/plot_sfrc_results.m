@@ -1,8 +1,8 @@
 function figures = plot_sfrc_results(curves, singleFrame, directory)
-% Display only the current-frame sFRC curve and optionally save its PNG preview.
+% Display only the first-frame sFRC curve and optionally save its PNG preview.
 % An empty directory displays figures without writing files.
 if nargin < 3, directory = ''; end
-selected=current_result_index(numel(curves),curves(1).parameters);
+selected=current_result_index(numel(curves));
 figures = cell(1, numel(selected));
 for outputIndex = 1:numel(selected)
     index=selected(outputIndex);

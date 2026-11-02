@@ -4,7 +4,7 @@ function result = srFRC(im,varargin)
 % **************************************************************************************
 % Usage:
 %   result = srFRC(im, 'pixelSize', 0.02, 'singleFrame', true);
-%   result = srFRC(stack, 'batchProcessing', false, 'currentFrame', 3);
+%   result = srFRC(stack, 'batchProcessing', false);
 % -----------------------------------------------
 % Input:
 %   im                 Numeric image (Y,X) or image stack (Y,X,T).
@@ -25,8 +25,7 @@ function result = srFRC(im,varargin)
 %                      Used only when both background switches are false.
 %                      {default: 30}
 %   batchProcessing    Analyse every frame/pair. {default: true}
-%   currentFrame       One-based preview frame; also selects computation when batching is false.
-%                      Paired mode also needs the following frame. {default: 1}
+%                      If false, only the first frame/pair is analyzed.
 %   motionCorrection   Align paired frames before calculation. {default: false}
 %   meanFilterWidth    Correlation smoothing radius in bins. {default: 3}
 %   parallel           Use parfor if the Parallel Computing Toolbox is available;
@@ -69,7 +68,7 @@ function result = srFRC(im,varargin)
 %   Rolling correlations use the chosen primary criterion, followed when needed
 %   by 5-sigma x 0.6 then 2-sigma x 1.5. Local curves are not extrapolated.
 %   This function does not plot or save files. Demo-controlled exports use results/;
-%   demo plots show the first computed frame/pair when batching, or the selected result otherwise.
+%   demo plots show the first completed frame/pair.
 %   srFRC numerical helpers live in src/fSNR; map, modeling, image and
 %   reporting helpers live in src/Utils.
 %   No separate srFRC_support or repository-root utils folder is needed.
@@ -92,11 +91,19 @@ assert_srfrc_dependency_paths(srfrcSupportFolder);
 params=struct('pixelSize',0.02,'singleFrame',true,'blocksize',64,'skip',2,...
     'threshold','3-sigma',...
     'adaptiveBackground',true,'monitorChange',false,'backgroundIntensity',30,...
-    'batchProcessing',true,'currentFrame',1,...
+    'batchProcessing',true,...
     'motionCorrection',false,'meanFilterWidth',3,'parallel',true,'boundary',true,'amedianfilter',true);
 params=read_params(params,varargin);
+% Frame selection was removed: non-batch always processes the first frame/pair.
+if isfield(params,'currentFrame')
+    error('Analysis:RemovedFrameSelection',...
+        'currentFrame is no longer supported; preview and non-batch analysis use the first frame/pair.');
+end
 params.threshold=correlation_threshold(params.threshold);
 [params,ratios]=background_settings(params);
+if params.monitorChange
+    params.batchProcessing=false; % Compare backgrounds only for the first frame/pair.
+end
 if params.monitorChange
     fprintf(['srFRC - background monitoring enabled. ',...
         'Absolute background thresholds are printed for each frame/pair; backgroundIntensity is ignored.\n']);
@@ -112,12 +119,8 @@ params.minimumResolutionNm=2.3*(params.pixelSize*1000);
 computationTic=tic; % Numerical computation only; srFRC never draws or exports.
 im=normalize_image(im);
 [h,w,frames]=size(im);
-selected=select_stack_frames(frames,params.singleFrame,params.batchProcessing,params.currentFrame);
-% Keep currentFrame in output metadata for compatibility with plotting
-% helpers from older releases. In batch mode it is *not* an input
-% selector: all frames/pairs are computed, and 1 means preview the
-% first computed result. Never use a user-supplied currentFrame in batch.
-if params.batchProcessing, params.currentFrame=1; end
+selected=select_stack_frames(frames,params.singleFrame,params.batchProcessing);
+
 count=numel(selected);
 if count<1, error('srFRC:ImagePairRequired','Paired mode requires at least two frames.'); end
 maps=zeros(h,w,count,numel(ratios),'single'); rows=cell(count*numel(ratios),1);

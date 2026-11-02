@@ -27,6 +27,7 @@ function [FSCXY, FSCZ] = sFSC(im, varargin)
 %   numCones           Positive integer directional-cone count. {default: 5}
 %                      At least 5 is recommended; smaller positive counts are valid.
 %   xyMode             Lateral analysis from 'slice' or '3D' FFT data.
+%                      For low-SNR data, consider setting xyMode='3D'.
 %                      {default: 'slice'}
 %   progress           Show the computation progress display. {default: true}
 %   motionCorrection   Align paired volumes before analysis. {default: false}

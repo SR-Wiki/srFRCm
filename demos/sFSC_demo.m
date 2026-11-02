@@ -4,8 +4,10 @@
 clear; clc; close all;
 demoDir=fileparts(mfilename('fullpath'));
 rootDir=fileparts(demoDir);
-addpath(fullfile(rootDir,'src'));
-addpath(fullfile(rootDir,'src','Utils'));
+addpath(fullfile(rootDir,'src'),'-begin');
+addpath(fullfile(rootDir,'src','fSNR'),'-begin');
+addpath(fullfile(rootDir,'src','Utils'),'-begin');
+assert_demo_helper_paths(rootDir,{'plot_sfsc_results','save_demo_summary'});
 % Modify dataRoot when the TIFF files are stored outside the repository.
 
 inputFile=fullfile(rootDir,'example_data','Fig4i_1.tif');
@@ -29,7 +31,13 @@ if ~singleFrame, second=imreadstack(secondInputFile); pairArguments={second}; en
 
 %% 3. Optional compact summary display
 summary=Z.summary;
-disp(struct2table(summary));
+summaryTable=struct2table(summary);
+preferred={'lateral_resolution_nm','axial_resolution_nm','E_DRI_percent'};
+preferred=preferred(ismember(preferred,summaryTable.Properties.VariableNames));
+if ~isempty(preferred),summaryTable=movevars(summaryTable,preferred,'Before',1);end
+disp(summaryTable);
+fprintf('Numerical computation: %.3f s\n',Z.computationSeconds);
+disp(Z.stageComputationSeconds);
 
 %% 4. Optional numerical-result export
 % This demo section owns results/ creation and file writing.

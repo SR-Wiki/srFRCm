@@ -1,6 +1,7 @@
 function figures = plot_srfrc_results(result, directory)
 % Monitor mode: show only three matching resolution maps in one subplot row.
-% Every map, including non-monitor mode, has a right-side resolution colorbar.
+% Only the first frame/pair is displayed in both batch modes.
+% Every map has a right-side resolution colorbar.
 % All displayed cutoff values are absolute intensities on the 0-255 scale.
 % Each setting also receives its own sjet PNG when directory is nonempty.
 if nargin<2, directory=''; end
@@ -11,7 +12,7 @@ if size(result.maps,4)~=settings || (result.parameters.monitorChange && settings
     error('srFRC:IncompleteBackgroundGroups',...
         'Monitor mode requires all three background groups. Recompute with the current srFRC.m.');
 end
-selected=current_result_index(count,result.parameters);
+selected=current_result_index(count);
 figures=cell(1,numel(selected));
 colors=sjet();
 for outputIndex=1:numel(selected)

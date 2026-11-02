@@ -4,7 +4,7 @@ function FRC = sFRC(im,varargin)
 % **************************************************************************************
 % Usage:
 %   FRC = sFRC(im, 'pixelSize', 0.02, 'singleFrame', true);
-%   FRC = sFRC(stack, 'batchProcessing', false, 'currentFrame', 3);
+%   FRC = sFRC(stack, 'batchProcessing', false);
 % -----------------------------------------------
 % Input:
 %   im                 Numeric image (Y,X) or image stack (Y,X,T).
@@ -17,9 +17,7 @@ function FRC = sFRC(im,varargin)
 %                      {default: '1/7 hard threshold'}
 %   motionCorrection   Align paired frames before correlation. {default: false}
 %   batchProcessing    Analyse all frames/pairs. {default: true}
-%                      If false, analyse currentFrame only; batch mode ignores it.
-%   currentFrame       One-based frame index for an individual run. {default: 1}
-%                      Paired mode also requires the following frame.
+%                      If false, analyse only the first frame/pair.
 % -----------------------------------------------
 % Output:
 %   FRC                Structure or ordered structure array, one per frame/pair.
@@ -51,8 +49,13 @@ addpath(fullfile(projectRoot,'src','fSNR'),'-begin');
 check_global_frc_paths(projectRoot,'sFRC');
 
 params=struct('pixelSize',0.02,'meanFilterWidth',3,'singleFrame',true,...
-    'threshold','1/7 hard threshold','motionCorrection',false,'batchProcessing',true,'currentFrame',1);
+    'threshold','1/7 hard threshold','motionCorrection',false,'batchProcessing',true);
 params=read_params(params,varargin);
+% Frame selection was removed: non-batch always processes the first frame/pair.
+if isfield(params,'currentFrame')
+    error('Analysis:RemovedFrameSelection',...
+        'currentFrame is no longer supported; preview and non-batch analysis use the first frame/pair.');
+end
 params.threshold=correlation_threshold(params.threshold,'sFRC');
 if ~isscalar(params.pixelSize) || ~isfinite(params.pixelSize) || params.pixelSize<=0
     error('sFRC:InvalidPixelSize','Enter a positive, finite pixelSize in um.');
@@ -62,12 +65,7 @@ if params.meanFilterWidth<1 || ~ismember(params.threshold,{'1/7','3-sigma'})
 end
 if ndims(im)>3, error('sFRC:InvalidStack','Expected (Y,X) or (Y,X,T).'); end
 im=normalize_image(im);
-selected=select_stack_frames(size(im,3),params.singleFrame,params.batchProcessing,params.currentFrame);
-% Keep currentFrame in output metadata for compatibility with plotting
-% helpers from older releases. In batch mode it is *not* an input
-% selector: all frames/pairs are computed, and 1 means preview the
-% first computed result. Never use a user-supplied currentFrame in batch.
-if params.batchProcessing, params.currentFrame=1; end
+selected=select_stack_frames(size(im,3),params.singleFrame,params.batchProcessing);
 count=numel(selected);
 if count<1, error('sFRC:ImagePairRequired','Paired mode needs at least two stack frames.'); end
 curves=cell(1,count); rows=cell(1,count);
