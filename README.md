@@ -68,18 +68,9 @@ contains exactly three runnable examples: `sFRC_demo.m`, `sFSC_demo.m` and
 
 Download and extract the **example_data.zip** asset from
 [srFRCj Releases](https://github.com/SR-Wiki/srFRCj/releases/download/v1.0/example_data.zip) into the project-root
-`example_data/`, alongside `src/`, `utils/` and `demos/`. The demos directly read
-`Fig2b_SD-SIM.tif` (sFRC), `Fig2h.tif` (srFRC), and `Fig4i_1.tif` / `Fig4i_2.tif`
-(single/paired sFSC). Edit the explicit path and calibrated pixel size in each
+`example_data/`, alongside `src/`, `utils/` and `demos/`. Edit the explicit path and calibrated pixel size in each
 demo if your files differ. No extra data-loader function is required.
 
-The core functions receive image arrays and return numerical results. Saving
-is a separate demo step. Outputs go directly into **current-working-directory
-`results/`**, using module/stage names such as `sFRC_results.csv` and
-`srFRC_bg1.2_resolution-map.tif`. There are no timestamped run folders or
-input-base-name settings; repeating a run overwrites same-named outputs.
-The demo's plot/save switches are at the top of the script. Saving disabled
-means no output files or directories; plotting disabled still allows numeric export.
 
 ```matlab
 addpath('demos');
@@ -88,22 +79,10 @@ sFSC_demo;
 srFRC_demo;
 ```
 
-Run from the desired working directory so its `results/` folder receives the
-outputs. MATLAB sampling is in um; stacks use YXT and sFSC volumes YXZ with
-spacing `[x,y,z]`. Plotting is demo-only and is not a core function parameter.
 
 See [demo outputs](docs/advancedParameters.md#demo-outputs) for saved formats
 and [advanced parameters](docs/advancedParameters.md) for the current policy.
 
-
-## Input preparation and figures
-
-Images are converted to single (float32) and divided by their maximum before analysis.
-Stacks/volumes share one maximum to preserve relative slice intensities;
-all-zero inputs stay zero. Result figures and saved previews omit diagnostic
-text; warnings and E_DRI interpretation are printed to the console. Correlation
-curves and fitted anisotropic profiles use light red (RGB 230,115,115).
-See [input preparation details](docs/advancedParameters.md#input-precision-normalization-and-plot-appearance).
 
 ## Basic parameters
 
