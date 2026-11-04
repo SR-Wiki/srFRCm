@@ -4,45 +4,59 @@ Return to the [README](../README.md).
 
 This guide applies to this MATLAB repository. The numerical entry points are
 `sFRC`, `sFSC`, and `srFRC` in `src/`. They accept image arrays and return
-numerical results. The demos read the example TIFF files and decide whether
-to invoke plotting and export utilities from `utils/`.
+numerical results. The three `.m` demos in `demos/` read example TIFF files; numerical and
+display/export helpers are in `src/Utils/`. The core functions do not create
+files or figures. Run demos from MATLAB after adding the repository paths.
 
-## Threshold choices and demo auto plotting
+## Find the function you need
 
-All three functions accept the two correlation criteria `1/7 hard threshold` and
-`3-sigma`. The fixed criterion is the default for sFRC/sFSC; **srFRC retains
-`threshold='3-sigma'` by default**. The existing spelling `'1/7'` is an alias;
-`'fixed_threshold'` is accepted as another fixed-criterion alias for script
-compatibility. Internal curves and summary parameters retain the key `'1/7'`.
-These aliases are not extra criteria. 2-sigma/5-sigma are not public choices.
+| Function | Input | Output |
+| --- | --- | --- |
+| `sFRC` | 2D image or `(Y,X,T)` stack | Global 2D resolution in nm for each analyzed frame/pair |
+| `sFSC` | `(Y,X,Z)` volume; paired volumes supported | Lateral/axial resolution in nm and E_DRI (%) |
+| `srFRC` | 2D image or `(Y,X,T)` stack | Local resolution maps (nm), foreground statistics and background thresholds |
 
-Example: `srFRC(image,'threshold','1/7 hard threshold')` selects 1/7 as the
-primary criterion. Serial and parallel calculations preserve the internal
-fallback order: **primary, then 5-sigma x 0.6, then 2-sigma x 1.5**. A window
-becomes zero only when no criterion provides a finite positive estimate. The
-summary identifies the selected primary criterion. Sigma padding calibration
-is retained and the hard cutoff stays exactly 1/7. Local curves are not extrapolated.
+**Units:** MATLAB `pixelSize` is entered in **µm**, but all reported resolution
+values and map values are in **nm**. Example: 60 nm corresponds to `0.06` µm.
+MATLAB `sFSC` voxel spacing is `[x,y,z]` and DRI angles are in **radians**.
+Use your acquisition calibration rather than relying on demonstration defaults.
 
-Plotting stays in the demos and `utils/`; **no plot argument is added to any
-numerical function**. The sFRC/srFRC demos use `plotMode='auto'` and resolve it with
-`resolve_demo_plot`:
+## How to interpret the results
 
-| Demo settings | Display behavior |
+| Output | Interpretation |
 | --- | --- |
-| batchProcessing=true (default) | Compute all frames/pairs; preview only currentFrame |
-| batchProcessing=false, singleFrame=true | Show only the one-based currentFrame result |
-| batchProcessing=false, singleFrame=false | Show the calculation for currentFrame and the following frame |
-| plotMode=false | Always hide plots |
+| Resolution (nm) | **Smaller** values indicate finer estimated resolvable detail; compare results obtained with appropriate sampling and the same analysis settings. |
+| `NaN` / unavailable | No usable resolution estimate was obtained; check warnings, pixel/voxel spacing and the correlation curves instead of treating it as zero. |
+| srFRC map value `0` | Background or an invalid local estimate, **not** a measured resolution of 0 nm. Zero pixels are excluded from foreground resolution statistics. |
+| `E_DRI` (sFSC) | Agreement between directional cutoffs and the fitted DRI model. **Not** an error relative to ground truth or a confidence interval. |
 
-`plotMode=true` requests the same single current-frame display as auto,
-independently of batching. The helper also accepts text 'true'/'false'. sFSC treats its stack as
-one 3D volume and always displays an available result in the demo. Its demo has
-no `plotMode` or `plotResults` switch; `plotFittingCurve` controls only the extra DRI-fit figure. Numerical exports contain
-all computed frames; PNG previews contain only the current frame/pair, including
-its background-comparison group. If a paired preview has no following frame,
-a Command Window notice explains why it cannot be shown; the numerical batch
-is retained. The optional save/display sections remain separate from computation
-and outputs still use results/.
+For srFRC, background **intensity thresholds** (0–255 scale) are separate from
+FRC/FSC **correlation thresholds** (`1/7 hard threshold` and `3-sigma`).
+Numerical map values are in nm; colour rendering is for inspection and should
+not replace quantitative TIFF/MAT/NPZ data.
+
+
+## Threshold choices and batch preview
+
+The only public FRC/FSC correlation thresholds are `1/7 hard threshold` and
+`3-sigma`. sFRC/sFSC default to 1/7; srFRC defaults to `3-sigma`.
+`'1/7'` and `'fixed_threshold'` remain accepted aliases for the fixed 1/7
+criterion; internal 2-/5-sigma fallbacks for srFRC are not selectable settings.
+
+**Batch controls calculation, not which result is displayed.** MATLAB displays
+the **first** analyzed frame or adjacent frame pair; there is **no**
+`currentFrame`, `plotMode`, or numerical-function plot argument.
+
+| Setting | Computation | Demo preview |
+| --- | --- | --- |
+| `batchProcessing=true` | All frames or adjacent pairs | First frame/pair only |
+| `batchProcessing=false` | First frame or first adjacent pair | That result only |
+| `monitorChange=true` (srFRC) | Forces batch OFF; three background groups on first frame/pair | All three backgrounds for the first frame/pair |
+
+The sFRC/srFRC demos display one result and use `saveResults` only to control
+export. sFSC treats the volume as one dataset; `plotFittingCurve` requests an
+additional fitting figure. To analyze a different time point, pass the desired
+frame or substack as a new input array.
 
 ## Input precision, normalization and plot appearance
 
@@ -95,14 +109,14 @@ The following sFSC controls are listed with the axial/DRI settings first.
 | `singleFrame` | `true` | Generate an XY-resampled pair from one volume |
 | `threshold` | `'1/7'` | sFRC/sFSC threshold; `'3-sigma'` is also supported |
 | `meanFilterWidth` | `3` | Correlation smoothing radius in frequency bins |
-| `xyMode` | `'slice'` | Lateral estimation from slices; `'3D'` uses the central Fourier plane |
+| `xyMode` | `'slice'` | Optionally set `'3D'` for low-SNR data |
 | `motionCorrection` | `false` | Align paired inputs; not used for single-frame pair generation |
 | `progress` | `true` | Display sFSC progress bars |
 
-sFRC/srFRC share `singleFrame=true`, `batchProcessing=true`,
-`currentFrame=1`, and `motionCorrection=false`. Their `pixelSize` default is
-`0.02` um; replace it with the calibrated spacing. sFSC has a default
-`pixelSize=[0.03 0.03 0.1]` um, which also needs acquisition-specific calibration.
+sFRC/srFRC default to `singleFrame=true`, `batchProcessing=true`,
+and `motionCorrection=false`. Their `pixelSize` default is
+`0.02` µm; replace it with the calibrated spacing. sFSC has a default
+`pixelSize=[0.03 0.03 0.1]` µm, which also needs acquisition-specific calibration.
 
 | srFRC parameter | Default | Meaning |
 | --- | --- | --- |
@@ -247,29 +261,29 @@ guide stays in textual output rather than adding repetitive CSV columns.
 
 ## Stack batching and plotting
 
-sFRC/srFRC use one `(Y,X,T)` stack. With `batchProcessing=true`, an N-frame
-single-frame stack produces N results; `singleFrame=false` produces N-1
-overlapping adjacent pairs: `(1,2)`, `(2,3)`, ..., `(N-1,N)`. Paired mode
-requires at least two frames.
+sFRC/srFRC accept `(Y,X,T)` stacks. With `batchProcessing=true`, a stack with
+N frames produces N single-frame results or N−1 consecutive paired results
+`(1,2), (2,3), ..., (N−1,N)`. With `batchProcessing=false`, only the first
+frame or pair `(1,2)` is analyzed. At least two frames are needed for paired
+mode.
 
-With `batchProcessing=false`, `currentFrame` selects one **one-based** frame.
-Paired mode also uses the following frame. sFSC instead analyzes a 3D volume
-or volume pair and has no 2D-stack batch switch.
+There is no optional frame-selection parameter. Regardless of batch mode,
+plot helpers show only the **first** computed frame/pair (and, for monitored
+srFRC, its three background maps). Results tables and numerical files retain
+all frames that were actually computed. sFSC uses a 3D volume or volume pair
+and does not use 2D-stack batching.
 
-Plotting controls belong only to the demos. The numerical functions accept
-no `plot`, `plotFittingCurve`, save switch, output directory, or base-name
-arguments. sFRC/srFRC demos show only currentFrame by default with batching ON or OFF.
-Paired mode shows one result for currentFrame and the next frame. The sFRC/srFRC
-demo controls are `plotMode`, its resolved `plotResults`, and `saveResults`.
-The sFSC demo always calls `plot_sfsc_results` for the completed result, with no
-master plotting switch. `plotFittingCurve=false` remains the independent default
-for the additional DRI-fit figure; `saveResults` still controls file writing.
+Display and saving remain separate demo operations; the numerical entry points
+have no plot or file-output switches. The sFSC demo always plots its available
+resolution profile, with `plotFittingCurve=false` controlling only the optional
+additional fit diagnostic.
 
 ## srFRC background parameter relationships
 
-`monitorChange=true` takes priority and **forces `adaptiveBackground=false`**
-before calculation. It still runs its own Otsu comparison; it does not select
-manual-background mode.
+`monitorChange=true` takes priority: it forces **both**
+`adaptiveBackground=false` and `batchProcessing=false`. The first frame/pair
+is evaluated with three Otsu multipliers; this is not the manual-background
+mode.
 
 | monitorChange | adaptiveBackground (effective) | Background thresholds | backgroundIntensity |
 | --- | --- | --- | --- |
@@ -293,8 +307,8 @@ The background mask is applied when `boundary=true`
 ### srFRC monitored outputs and sjet comparison
 
 When `monitorChange=true`, exactly three groups are retained: `bg0.8`, `bg1.0`
-and `bg1.2`. This remains true when adaptiveBackground is requested as false,
-for a single image, for a selected frame and for complete-stack batching.
+and `bg1.2`. The monitored run analyzes **only the first frame/pair**, even if
+`batchProcessing=true` was requested.
 The console prints the effective background mode, group names and group count.
 Do not confuse a single result container or a single frame with one background group.
 
@@ -322,13 +336,13 @@ legacy FRCMap retains its existing `(Y,X,B)` layout.
 In the demo, set the **demo variable** `monitorChange=true`. The demo passes its
 value explicitly; changing only a default inside srFRC.m does not override that
 argument. Running the entire demo also clears earlier command-line variables.
-The demo now prints the resulting effective mode and group count.
+The demo prints the effective mode and group count.
 
-Plotting shows only the current frame/pair, with all three background settings
+Plotting shows only the first frame/pair, with all three background settings
 **side by side in one comparison window**. Every axes and individual PNG uses
 the original `sjet` palette and a common `[0, maximum]` colour range. This affects
 display only; map samples and pre-upsampling statistics are unchanged. The palette
-is available through utils/sjet.m and writes no unsolicited sJet.lut file.
+is available through `src/Utils/sjet.m` and writes no unsolicited sJet.lut file.
 
 The demo keeps the combined MAT/CSV summary and additionally saves each background
 group as its own float32 TIFF and compact CSV:
@@ -340,7 +354,7 @@ group as its own float32 TIFF and compact CSV:
 | bg1.2 | srFRC_bg1.2_resolution-map.tif | srFRC_bg1.2_results.csv |
 
 Each TIFF and CSV retains every computed frame/pair. Optional PNG previews use
-the current-frame label and the background group name, producing three distinct
+the first-frame label and the background group name, producing three distinct
 files. The numerical entry point still neither plots nor writes files.
 MATLAB regression cases are in `tests/test_srfrc_monitoring.m`; run with
 `runtests('tests/test_srfrc_monitoring.m')` from this repository's root.
@@ -382,21 +396,16 @@ records the native grid dimensions. `result.summary` and exported summary rows
 use the same pre-upsampling values. `result.maps` and exported TIFF/PNG maps
 retain the original image size; their spatial mean can differ from the summary.
 
-All numerical srFRC project dependencies remain in
-`src/srFRC_support/+srfrc_support/`. The demo uses root `utils/` only for
-optional plotting/export, and the support namespace for reading its TIFF.
-
-The legacy `dPANEL` and `sPANEL` entry points are in `src/srFRC_support/`.
-Add that directory to the MATLAB path when calling them directly. `sPANEL`
-temporarily resolves `srFRC` from the parent `src/` directory and uses
-`srfrc_support.read_params`; the caller's path is restored on exit. Neither
-compatibility entry point requires the root `utils/` directory.
+Numerical and demo helpers are located in `src/Utils/`, with the shared
+FRC/FSC numerical helper functions in `src/fSNR/`. Compatibility entry points
+`sPANEL.m` and `dPANEL.m` remain in `src/Utils/`; they are not separate public
+plotting modules.
 
 ## Demo outputs
 
-The demos directly read explicit paths under project-root `example_data/`.
+The demos read example TIFF files under project-root `example_data/`.
 With saving enabled, the demo creates **`fullfile(pwd,'results')`** and invokes
-the utilities. Plot/export implementations are in `utils/`; file handling
+the utilities. Plot/export implementations are in `src/Utils/`; file handling
 is not added to the numerical functions.
 
 | Utility | Role |
@@ -404,17 +413,16 @@ is not added to the numerical functions.
 | `save_demo_summary.m` | Compact CSV and MAT export; sFSC interpretation text |
 | `plot_correlation_curve.m`, `plot_sfrc_results.m` | sFRC curve display and optional PNG previews |
 | `plot_sfsc_results.m` | Resolution/DRI figures and optional PNG previews |
-| `plot_srfrc_results.m` | Current-frame sjet comparison and one PNG per background group |
+| `plot_srfrc_results.m` | First-frame sjet comparison and one PNG per background group |
 | `save_srfrc_maps.m` | Final numeric-map TIFF export |
 | `imwritestack.m` | Shared float32 TIFF writer; optional image description |
 
 Plot helpers accept an empty directory to display without exporting. Saving
-numerical data does not require plotting. `utils/write_float_tiff.m` is a thin
-compatibility entry point that delegates to the shared `imwritestack` float32
-writer. `save_srfrc_maps.m` uses that same writer directly. The writer performs
+numerical data does not require plotting. `src/Utils/imwritestack.m` is the shared float32 TIFF writer;
+`save_srfrc_maps.m` uses it to preserve numerical map values. The writer performs
 no normalization; map exports include nm units and page order in the description.
-The `demos/` folder contains only `sFRC_demo.m`, `sFSC_demo.m` and `srFRC_demo.m`;
-all helpers are in `utils/`.
+The `demos/` folder contains `sFRC_demo.m`, `sFSC_demo.m` and `srFRC_demo.m`;
+the relevant helpers are in `src/Utils/`.
 
 | Content | Filename examples |
 | --- | --- |
