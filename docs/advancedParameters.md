@@ -2,173 +2,108 @@
 
 Return to the [README](../README.md).
 
-This guide applies to this MATLAB repository. The numerical entry points are
-`sFRC`, `sFSC`, and `srFRC` in `src/`. They accept image arrays and return
-numerical results. The three `.m` demos in `demos/` read example TIFF files; numerical and
-display/export helpers are in `src/Utils/`. The core functions do not create
-files or figures. Run demos from MATLAB after adding the repository paths.
+The numerical functions `sFRC`, `sFSC` and `srFRC` are in `src/`. The three MATLAB demos are in `demos/`; plotting and export helpers are in `src/Utils/`. The numerical functions return results without creating figures or files.
 
-## Find the function you need
+Go directly to the analysis you are using:
 
-| Function | Input | Output |
-| --- | --- | --- |
-| `sFRC` | 2D image or `(Y,X,T)` stack | Global 2D resolution in nm for each analyzed frame/pair |
-| `sFSC` | `(Y,X,Z)` volume; paired volumes supported | Lateral/axial resolution in nm and E_DRI (%) |
-| `srFRC` | 2D image or `(Y,X,T)` stack | Local resolution maps (nm), foreground statistics and background thresholds |
+- [sFRC — global 2D resolution](#sfrc)
+- [sFSC — lateral/axial 3D resolution and DRI](#sfsc)
+- [srFRC — local resolution maps](#srfrc)
+- [Demo outputs](#demo-outputs)
 
-**Units:** MATLAB `pixelSize` is entered in **µm**, but all reported resolution
-values and map values are in **nm**. Example: 60 nm corresponds to `0.06` µm.
-MATLAB `sFSC` voxel spacing is `[x,y,z]` and DRI angles are in **radians**.
-Use your acquisition calibration rather than relying on demonstration defaults.
+Use the original acquisition calibration. **Enter `pixelSize` in µm; reported resolutions and srFRC map values are in nm.** For example, 60 nm is `0.06` µm. A 2D stack uses `(Y,X,T)`; an sFSC volume uses `(Y,X,Z)` with voxel spacing `[x,y,z]`. DRI angles are in **radians**.
 
 ## How to interpret the results
 
 | Output | Interpretation |
 | --- | --- |
-| Resolution (nm) | **Smaller** values indicate finer estimated resolvable detail; compare results obtained with appropriate sampling and the same analysis settings. |
-| `NaN` / unavailable | No usable resolution estimate was obtained; check warnings, pixel/voxel spacing and the correlation curves instead of treating it as zero. |
-| srFRC map value `0` | Background or an invalid local estimate, **not** a measured resolution of 0 nm. Zero pixels are excluded from foreground resolution statistics. |
-| `E_DRI` (sFSC) | Agreement between directional cutoffs and the fitted DRI model. **Not** an error relative to ground truth or a confidence interval. |
+| Resolution (nm) | **Smaller** values indicate finer estimated resolvable detail; compare results with appropriate calibration and consistent settings. |
+| `NaN` / unavailable | No usable estimate was obtained. Check warnings, sampling and correlation curves; do not interpret it as zero. |
+| srFRC map value `0` | Background or an invalid local estimate, **not** a measured resolution of 0 nm. Background zeros are excluded from foreground statistics. |
+| `E_DRI` (sFSC) | Agreement between directional cutoffs and the DRI model; **not** an error against ground truth or a confidence interval. |
 
-For srFRC, background **intensity thresholds** (0–255 scale) are separate from
-FRC/FSC **correlation thresholds** (`1/7 hard threshold` and `3-sigma`).
-Numerical map values are in nm; colour rendering is for inspection and should
-not replace quantitative TIFF/MAT/NPZ data.
+Background **intensity thresholds** use a 0–255 scale and are separate from FRC/FSC **correlation thresholds**. Use numerical results and Float32 TIFF/MAT files for quantitative analysis rather than relying on map colours.
 
-
-## Threshold choices and batch preview
-
-The only public FRC/FSC correlation thresholds are `1/7 hard threshold` and
-`3-sigma`. sFRC/sFSC default to 1/7; srFRC defaults to `3-sigma`.
-`'1/7'` and `'fixed_threshold'` remain accepted aliases for the fixed 1/7
-criterion; internal 2-/5-sigma fallbacks for srFRC are not selectable settings.
-
-**Batch controls calculation, not which result is displayed.** MATLAB displays
-the **first** analyzed frame or adjacent frame pair; there is **no**
-`currentFrame`, `plotMode`, or numerical-function plot argument.
-
-| Setting | Computation | Demo preview |
+| `batchProcessing` | Computation | Demo display |
 | --- | --- | --- |
-| `batchProcessing=true` | All frames or adjacent pairs | First frame/pair only |
-| `batchProcessing=false` | First frame or first adjacent pair | That result only |
-| `monitorChange=true` (srFRC) | Forces batch OFF; three background groups on first frame/pair | All three backgrounds for the first frame/pair |
+| `true` (default) | All frames or adjacent pairs | First frame/pair only |
+| `false` | First frame or first adjacent pair only | That result only |
 
-The sFRC/srFRC demos display one result and use `saveResults` only to control
-export. sFSC treats the volume as one dataset; `plotFittingCurve` requests an
-additional fitting figure. To analyze a different time point, pass the desired
-frame or substack as a new input array.
+The numerical functions do not accept `currentFrame`, `plotMode` or a general plotting switch. The demos show only the first frame/pair, regardless of batching. For srFRC, `monitorChange=true` overrides Batch and compares different background settings on the first frame/pair. sFSC analyzes a 3D volume or volume pair, not a time-stack batch.
 
-## Input precision, normalization and plot appearance
+## sFRC
 
-TIFF readers used by the demos convert each page directly to **single (float32)** and
-divide the complete loaded stack by its maximum. The three numerical entry points also prepare
-direct image-array inputs as single and normalize by the maximum before
-diagonal averaging or motion correction. An all-zero input remains zero;
-non-finite intensities produce an explanatory error. Input arrays are not
-modified, and there is no intermediate 8-bit/16-bit image conversion.
+Global resolution estimation for 2D images and image stacks.
 
-The reading/preparation stage is 32-bit floating point; subsequent FFT, fitting
-or interpolation routines may retain their existing higher calculation precision.
+### sFRC input and calibration
 
-One maximum is shared by a complete stack or 3D volume, preserving relative
-slice intensities. Each acquisition in paired sFSC is normalized independently,
-whether supplied as two arguments or as a fourth-dimension pair. srFRC also
-normalizes each generated pair member to a maximum of one. Its manual and
-reported background thresholds retain their **0-255 units**: background tests
-use threshold/255, and only the temporary Otsu histogram image is quantized to
-uint8. Correlation calculations continue to use floating-point image data.
+Use one `(Y,X)` image or `(Y,X,T)` stack. In paired mode, adjacent frames are compared.
 
-Figures retain numerical results such as E_DRI but omit grades, warnings,
-fitting-angle advice, extrapolation notices and Z-sampling reminders. Those
-diagnostics remain in the Command Window, with existing text/MAT exports
-retained. Correlation curves, the fitted 3D anisotropic resolution profile and
-DRI-fit lines use light red **[230 115 115]/255**. Measured-point markers and
-threshold lines retain contrasting colours. Display/export remains in demo
-utilities; the numerical functions have no plotting or file-output parameters.
-
-## Parameter names and defaults
-
-Use the original acquisition calibration. Input sampling is in **um**;
-reported resolutions and srFRC map values are in **nm**.
-
-| Input | Array order / calibration |
-| --- | --- |
-| sFRC/srFRC image or stack | `(Y,X)` or `(Y,X,T)`; scalar `pixelSize` in um |
-| sFSC volume | `(Y,X,Z)`; `pixelSize=[x y z]` in um |
-| Paired sFSC input | Two volume arguments, or one `(Y,X,Z,2)` array |
-| DRI fitting angles | Radians, measured from the XY plane |
-
-The following sFSC controls are listed with the axial/DRI settings first.
+### sFRC parameters
 
 | Parameter | Default | Meaning |
 | --- | --- | --- |
-| `zSampling` | `false` | Manually enable complementary odd/even Z-plane sampling |
-| `lowAngle` | `pi/12` | Lower DRI angle, 15 degrees; recommended `>pi/18` |
-| `highAngle` | `pi/3` | Upper DRI angle, 60 degrees; recommended `<4*pi/9` |
-| `numCones` | `5` | Positive integer directional-cone count; at least 5 is recommended |
-| `singleFrame` | `true` | Generate an XY-resampled pair from one volume |
-| `threshold` | `'1/7'` | sFRC/sFSC threshold; `'3-sigma'` is also supported |
+| `pixelSize` | `0.02` | XY spacing in **µm**; replace with the acquisition value |
+| `singleFrame` | `true` | Generate a diagonal pair from each frame; `false` uses adjacent frames |
+| `threshold` | `'1/7 hard threshold'` | Alternative: `'3-sigma'` |
 | `meanFilterWidth` | `3` | Correlation smoothing radius in frequency bins |
-| `xyMode` | `'slice'` | Optionally set `'3D'` for low-SNR data |
-| `motionCorrection` | `false` | Align paired inputs; not used for single-frame pair generation |
-| `progress` | `true` | Display sFSC progress bars |
+| `batchProcessing` | `true` | Process every frame or adjacent pair |
+| `motionCorrection` | `false` | Align paired frames before analysis |
 
-sFRC/srFRC default to `singleFrame=true`, `batchProcessing=true`,
-and `motionCorrection=false`. Their `pixelSize` default is
-`0.02` µm; replace it with the calibrated spacing. sFSC has a default
-`pixelSize=[0.03 0.03 0.1]` µm, which also needs acquisition-specific calibration.
+### sFRC curve extrapolation
 
-| srFRC parameter | Default | Meaning |
+Resolution normally comes from a measured correlation-threshold crossing. If none is available, the fixed 1/7 criterion permits automatic extrapolation; Extrapolation extends beyond the measured frequencies and adds no new measured information.
+
+Extrapolation is not a public option. The function reports attempts and warnings; an unavailable estimate remains `NaN`. The selected threshold is never silently changed.
+
+### sFRC stack batching and plotting
+
+With `batchProcessing=true`, an N-frame stack produces N single-frame results or N−1 overlapping adjacent-pair results. With `false`, only the first frame or pair `(1,2)` is analyzed.
+
+The demo plots only the first result. Numerical exports retain all computed frames/pairs.
+
+### sFRC results and saved files
+
+The summary records the frame/pair, threshold, extrapolation status and resolution in nm.
+
+| Content | Filename examples |
+| --- | --- |
+| Summary and numerical results | `sFRC_results.csv`, `sFRC_results.mat` |
+| Optional curve preview | `sFRC_frame0001_correlation-curve.png` |
+
+## sFSC
+
+Lateral and axial resolution estimation for 3D volumes using DRI.
+
+### sFSC input and calibration
+
+Use a `(Y,X,Z)` volume or two matching volumes. Paired inputs can also be supplied as `(Y,X,Z,2)`. Enter voxel spacing as `pixelSize=[x y z]` in **µm**. DRI angles are measured from the XY plane in **radians**.
+
+### sFSC parameters
+
+| Parameter | Default | Meaning |
 | --- | --- | --- |
-| `threshold` | `'3-sigma'` | Only alternative: `'1/7 hard threshold'` (or its alias `'1/7'`) |
-| `blocksize` | `64` | Local window width; rounded up to an even integer |
-| `skip` | `2` | Rolling step, capped at half the window width |
-| `adaptiveBackground` | `true` | Use 1.2 times Otsu; forced false by monitorChange |
-| `monitorChange` | `false` | Compare Otsu multipliers 0.8, 1.0, and 1.2; takes priority |
-| `backgroundIntensity` | `30` | Manual 0–255 intensity threshold, used only when both background switches are false |
-| `parallel` | `true` | Use parallel processing when the toolbox is available; otherwise serial |
-| `meanFilterWidth` | `3` | Local correlation smoothing radius |
-| `boundary` | `true` | Apply the local background-intensity mask |
-| `amedianfilter` | `true` | Apply the adaptive median filter when `skip=1` |
+| `pixelSize` | `[0.03 0.03 0.1]` | Voxel spacing `[x y z]` in µm; replace with acquisition values |
+| `zSampling` | `false` | Optionally use complementary odd/even Z planes |
+| `lowAngle` | `pi/12` | Lower DRI angle; recommended `>pi/18` |
+| `highAngle` | `pi/3` | Upper DRI angle; recommended `<4*pi/9` |
+| `numCones` | `5` | Number of directional cones; at least 5 is recommended |
+| `singleFrame` | `true` | Generate a resampled pair from one volume |
+| `threshold` | `'1/7 hard threshold'` | Alternative: `'3-sigma'` |
+| `meanFilterWidth` | `3` | Correlation smoothing radius in frequency bins |
+| `xyMode` | `'slice'` | Optionally choose `'3D'` for low-SNR data |
+| `motionCorrection` | `false` | Align paired volumes |
+| `progress` | `true` | Show computation progress |
 
-srFRC exposes `threshold`, defaulting to `'3-sigma'`; the only other criterion is
-`'1/7 hard threshold'`. The same selection is used in serial and parallel work,
-with the existing calibrated 5-sigma/2-sigma fallbacks and no local-curve extrapolation. For sFRC/sFSC,
-`curve_extrapolation` describes an automatic fallback, not a public option.
-`E_DRI` is an output diagnostic.
+### sFSC curve extrapolation
 
-## Curve extrapolation
+Measured crossings are preferred. Automatic extrapolation is available only for the fixed 1/7 threshold. During DRI, directional extrapolation is attempted **only if no direction has a usable measured crossing**; otherwise, fitting uses the available measured directions.
 
-Resolution uses a crossing between the measured correlation curve and its
-threshold. Extrapolation fits a curve beyond the measured frequency range
-when no usable crossing is available; it does not add measured information.
+An unsuccessful estimate remains `NaN` with a warning. The result records whether extrapolation was attempted, which does not necessarily mean it succeeded.
 
-1. sFRC and lateral sFSC use measured crossings when available. Otherwise,
-   automatic extrapolation is attempted for the `'1/7'` threshold.
-2. Axial sFSC/DRI first evaluates every directional curve without extrapolation.
-   If any direction has a usable measured crossing, only usable measured
-   directions enter the fit. Missing directions are excluded.
-3. Directional extrapolation is attempted only when **all directions lack
-   usable measured crossings**, and only for `'1/7'`.
-4. Failed extrapolation, an unsupported threshold, or an unusable fit leaves
-   unavailable estimates as `NaN` and issues a warning. An unavailable lateral
-   anchor also prevents an axial estimate.
+### E_DRI: what the value means
 
-Successful extrapolation prints a stage-specific notice with `fprintf`.
-Failure and unsupported thresholds use `warning(...)`; the selected threshold
-is never silently changed. Internal measured-only controls support the first
-DRI pass and rolling FRC and are not public switches.
-
-The summaries record `extrapolation_triggered` as an attempt flag, including
-failed attempts. sFSC also records `extrapolation_stage`: `none`, `lateral`,
-`axial`, or `lateral and axial`. Lateral tracking includes candidate slices;
-the flag alone does not prove that the final selected curve was extrapolated.
-Inspect the notices and returned curve/fit information.
-
-## E_DRI: what the value means
-
-DRI fits an elliptical frequency model using the lateral anchor and selected
-directional cutoffs. E_DRI is the cosine-weighted relative RMS fitting error:
+DRI fits a directional frequency-support model. E_DRI is the cosine-weighted relative RMS fitting error:
 
 $$
 E_{\mathrm{DRI}}=
@@ -177,265 +112,110 @@ E_{\mathrm{DRI}}=
 {\sum_i\cos\theta_i}}.
 $$
 
-Here, `theta` is measured from the XY plane, `k_i` is a directional cutoff
-used in the fit, and `k_fit,i` is predicted by the fitted ellipse. This checks
-model consistency; it is not a ground-truth resolution error or confidence
-interval. Few usable directions or an incorrect calibration can still make a
-low-error result unreliable.
+Here, `θ` is measured from the XY plane, `k_i` is a measured directional cutoff, and `k_fit,i` is the fitted value. E_DRI measures model consistency, not ground-truth accuracy.
 
-| E_DRI in percent | Interpretation |
+| E_DRI (%) | Interpretation |
 | --- | --- |
 | `<10%` | Reliable under the DRI consistency criterion |
-| `10–20%`, including exactly 10% and 20% | Use with caution |
+| `10–20%` | Use with caution |
 | `>20%` | Unacceptable; do not accept the axial estimate |
-| Unavailable / `NaN` | No fit-error assessment; no reliability grade |
+| `NaN` / unavailable | No fit-error assessment |
 
-For finite `E_DRI >=10%`, the warning recommends adjusting the DRI fitting
-angle range and repeating the analysis. Recommended limits are
-**lowAngle >10 degrees** and **highAngle <80 degrees**. Since the function
-takes radians, use **`lowAngle >pi/18`** and **`highAngle <4*pi/9`**.
+For `E_DRI ≥10%`, inspect directional curves and consider adjusting the fitting angles. Recommended limits are `lowAngle > pi/18` and `highAngle < 4*pi/9`. A low E_DRI alone does not guarantee a correct estimate.
 
-Valid bounds are `0 <= lowAngle < highAngle <=pi/2`. Recommended angle limits
-produce advice, not automatic setting changes. `numCones` must be a positive
-integer; values below 5 remain accepted. Choose angles from directional curve
-quality and sampling, rather than minimizing E_DRI alone.
+`Z.E_DRI` is a fraction (`0.10` means 10%); `Z.summary.E_DRI_percent` is already a percentage.
 
-`Z.E_DRI` is a fraction: `0.10` means 10%. `Z.summary.E_DRI_percent` is
-already in percent. Estimates above 20% remain available for inspection and
-export together with their warning; export does not make them acceptable.
+### Z sampling: manual control and axial interpretation
 
-## Z sampling: manual control and axial interpretation
+`zSampling` is **false by default** and is never enabled automatically. It uses complementary odd/even Z planes for axial analysis, which can reduce shared inter-plane correlations but also reduces axial sampling density.
 
-`zSampling` is **false by default** and must be enabled manually. Voxel
-spacing, anisotropy, and estimated resolution never enable it automatically.
-
-When enabled, the axial stage uses complementary odd/even Z planes from the
-working volumes and doubles the effective Z spacing. This can reduce shared
-axial correlations associated with adjacent planes and inter-plane
-inconsistencies. It also reduces sampling density and may change directional
-crossings and the inferred result. It is separate from spacing-matching
-preprocessing and from srFRC cubic-spline map restoration.
-
-If axial resolution seems implausibly small for the acquisition, enable
-`zSampling`, rerun, and compare the axial estimate, directional crossings and
-E_DRI. The code does not automatically classify an estimate as optimistic.
-A finite single-frame axial result with Z sampling OFF receives a conditional
-interpretation note.
+If the axial estimate appears implausibly small, enable it manually and compare the axial resolution, directional crossings and E_DRI.
 
 ```matlab
-% volume is an already loaded (Y,X,Z) array; spacing is [x y z] in um.
 [XY,Z] = sFSC(volume, 'pixelSize', [0.02 0.02 0.06], ...
-             'zSampling', true, 'lowAngle', pi/12, 'highAngle', pi/3);
+    'zSampling', true, 'lowAngle', pi/12, 'highAngle', pi/3);
 ```
 
-The selected setting is returned in `Z.zSamplingEnabled` and `Z.parameters`.
-The conditional note is returned in `Z.interpretationNote`.
-
-## Warnings and prompts
+### Warnings and prompts
 
 | Situation | MATLAB behavior |
 | --- | --- |
-| Extrapolation succeeds | Stage-specific `fprintf` notice |
-| Missing crossing or failed/unsupported extrapolation | `warning(...)`; unavailable estimate remains `NaN` |
-| No usable directional crossing or invalid DRI fit | DRI-specific warning, including `sFSC:DRINoCrossing` |
-| Finite E_DRI >=10% | `sFSC:DRIGoodnessOfFit` warning with grading and fitting-angle advice |
-| `lowAngle <=pi/18` or `highAngle >=4*pi/9` | `sFSC:FittingAngleRange` warning explaining the radians convention |
-| Single-frame axial estimate, Z sampling OFF | Conditional console note and `Z.interpretationNote` |
+| Missing crossing or failed extrapolation | Warning; unavailable estimate remains `NaN` |
+| Unusable DRI fit | DRI-specific warning |
+| `E_DRI ≥10%` | Interpretation and fitting-angle advice |
+| Angles outside recommended limits | Warning; input angles remain unchanged |
+| Single-frame axial result with Z sampling OFF | Conditional interpretation note |
 
-Optional sFSC figures contain numerical E_DRI values without interpretation
-or advice. The Command Window retains all diagnostics. The demo also retains
-grading and axial notes in numerical-result metadata and a guidance text file.
+The Command Window reports warnings and the E_DRI grading guide. The sFSC demo displays the available resolution profile; its separate `plotFittingCurve` demo setting controls an optional DRI-fit figure.
 
-## Complete grading guide on every sFSC exit
+### sFSC results and saved files
 
-Every public sFSC call appends this guide to the console when it exits:
-
-```text
-E_DRI (relative fit error): <10% reliable; 10-20% use with caution; >20% unacceptable.
-```
-
-The `onCleanup` notice also applies to unavailable crossings, failed fits,
-early returns, and parameter/runtime errors. It is independent of plotting
-and of whether E_DRI is high. An unavailable value receives no grade. The
-guide stays in textual output rather than adding repetitive CSV columns.
-
-## Stack batching and plotting
-
-sFRC/srFRC accept `(Y,X,T)` stacks. With `batchProcessing=true`, a stack with
-N frames produces N single-frame results or N−1 consecutive paired results
-`(1,2), (2,3), ..., (N−1,N)`. With `batchProcessing=false`, only the first
-frame or pair `(1,2)` is analyzed. At least two frames are needed for paired
-mode.
-
-There is no optional frame-selection parameter. Regardless of batch mode,
-plot helpers show only the **first** computed frame/pair (and, for monitored
-srFRC, its three background maps). Results tables and numerical files retain
-all frames that were actually computed. sFSC uses a 3D volume or volume pair
-and does not use 2D-stack batching.
-
-Display and saving remain separate demo operations; the numerical entry points
-have no plot or file-output switches. The sFSC demo always plots its available
-resolution profile, with `plotFittingCurve=false` controlling only the optional
-additional fit diagnostic.
-
-## srFRC background parameter relationships
-
-`monitorChange=true` takes priority: it forces **both**
-`adaptiveBackground=false` and `batchProcessing=false`. The first frame/pair
-is evaluated with three Otsu multipliers; this is not the manual-background
-mode.
-
-| monitorChange | adaptiveBackground (effective) | Background thresholds | backgroundIntensity |
-| --- | --- | --- | --- |
-| `true` | `false`, forced | `0.8 x Otsu`, `1.0 x Otsu`, `1.2 x Otsu` | Ignored |
-| `false` | `true` | `1.2 x Otsu` | Ignored |
-| `false` | `false` | Fixed manual value | Used, default `30` |
-
-Both requested values of adaptiveBackground produce the same three comparisons
-when monitorChange is true. A Command Window notice explains the override;
-`result.parameters` records the effective false value. The three background
-settings remain separate along the map's B dimension and in per-frame summary rows.
-Otsu is evaluated for each working image pair. Manual and final reported thresholds
-use the **0-255 intensity scale**, independently of normalized single-precision
-image values. Correlation `threshold` is a separate cutoff, not an intensity value.
-
-For the ordinary automatic mode, use `'monitorChange',false,'adaptiveBackground',true`.
-For manual masking, use `'monitorChange',false,'adaptiveBackground',false,'backgroundIntensity',30`.
-The background mask is applied when `boundary=true`
-(default); `boundary=false` bypasses local intensity rejection in every mode.
-
-### srFRC monitored outputs and sjet comparison
-
-When `monitorChange=true`, exactly three groups are retained: `bg0.8`, `bg1.0`
-and `bg1.2`. The monitored run analyzes **only the first frame/pair**, even if
-`batchProcessing=true` was requested.
-The console prints the effective background mode, group names and group count.
-Do not confuse a single result container or a single frame with one background group.
-
-`result.maps` uses `(Y,X,T,B)` axes. **The background axis is dimension 4**;
-single-frame input has `size(result.maps,3)==1` and `size(result.maps,4)==3`.
-The previous compact storage already used this layout. Taking only
-`result.maps(:,:,1)` selects one background map, not all backgrounds.
-
-```matlab
-result = srFRC(image,'pixelSize',pixelSize,'monitorChange',true);
-result.backgroundCount                 % 3
-result.backgroundRatios                % [0.8 1.0 1.2]
-maps08 = result.maps(:,:,:,1);
-maps10 = result.maps(:,:,:,2);
-maps12 = result.maps(:,:,:,3);
-```
-
-`result.backgroundGroups` provides three named descriptors with `mapIndex`,
-per-frame summaries and actual background thresholds. These descriptors do not
-duplicate the full map data. `result.backgroundMode` identifies monitor,
-automatic or manual mode. The compatibility sPANEL/dPANEL outputs also retain
-all monitored PANEL groups: PANEL axes are `(Y,X,RGB,T,B)`, while a single-frame
-legacy FRCMap retains its existing `(Y,X,B)` layout.
-
-In the demo, set the **demo variable** `monitorChange=true`. The demo passes its
-value explicitly; changing only a default inside srFRC.m does not override that
-argument. Running the entire demo also clears earlier command-line variables.
-The demo prints the effective mode and group count.
-
-Plotting shows only the first frame/pair, with all three background settings
-**side by side in one comparison window**. Every axes and individual PNG uses
-the original `sjet` palette and a common `[0, maximum]` colour range. This affects
-display only; map samples and pre-upsampling statistics are unchanged. The palette
-is available through `src/Utils/sjet.m` and writes no unsolicited sJet.lut file.
-
-The demo keeps the combined MAT/CSV summary and additionally saves each background
-group as its own float32 TIFF and compact CSV:
-
-| Group | Numerical map | Per-group summary |
-| --- | --- | --- |
-| bg0.8 | srFRC_bg0.8_resolution-map.tif | srFRC_bg0.8_results.csv |
-| bg1.0 | srFRC_bg1.0_resolution-map.tif | srFRC_bg1.0_results.csv |
-| bg1.2 | srFRC_bg1.2_resolution-map.tif | srFRC_bg1.2_results.csv |
-
-Each TIFF and CSV retains every computed frame/pair. Optional PNG previews use
-the first-frame label and the background group name, producing three distinct
-files. The numerical entry point still neither plots nor writes files.
-MATLAB regression cases are in `tests/test_srfrc_monitoring.m`; run with
-`runtests('tests/test_srfrc_monitoring.m')` from this repository's root.
-
-## srFRC map restoration
-
-Single-frame srFRC restores the reduced map to the original XY size with a
-**separable cubic spline**, using MATLAB `interp1(...,'spline')` along X and
-then Y, with not-a-knot boundary conditions. Fourier map restoration and the
-`mapInterpolation` selection parameter have been removed. Backend metadata
-records `cubic_spline`; paired maps are already full size and record `none`.
-
-Zero-based output index j samples source coordinate j/2. Coordinates beyond the
-last source sample use that edge value, including odd original dimensions.
-Singleton axes are constant; axes with two or three samples use the corresponding
-linear or quadratic interpolation. Existing source samples are retained at even
-output coordinates. This is an interpolating cubic spline, not bicubic convolution.
-
-The original finite positive foreground mask is repeated to the output grid;
-it is never inferred from interpolated values. Points outside this support remain
-zero. Non-positive candidates become zero; finite positive candidates are bounded
-by the positive source minimum and maximum after source-map cleanup below.
-These guards prevent interpolation artifacts from becoming extra foreground.
-New spline samples can change the foreground mean; exact distribution or mean
-preservation is not guaranteed or imposed.
-
-**All resolution statistics are calculated BEFORE upsampling.** The native
-rolling map is first cleaned: non-positive samples become background zero and
-finite positive samples are at least **2.3 times the original pixel size in nm**.
-Mean/min/max resolution and `rFRC_value=mean/min-1` are then calculated from its
-finite positive foreground. Background zeros are excluded; an empty foreground
-gives `NaN` statistics. Only afterwards is the map enlarged for display/export.
-The spline is bounded by the cleaned source range, so restored positive values
-also retain the required lower bound. The doubled diagonal-pair spacing is used
-for correlation frequencies, not for a second map floor.
-
-`result.statisticsStage` records `pre_upsampling`, and `statisticsMapSize`
-records the native grid dimensions. `result.summary` and exported summary rows
-use the same pre-upsampling values. `result.maps` and exported TIFF/PNG maps
-retain the original image size; their spatial mean can differ from the summary.
-
-Numerical and demo helpers are located in `src/Utils/`, with the shared
-FRC/FSC numerical helper functions in `src/fSNR/`. Compatibility entry points
-`sPANEL.m` and `dPANEL.m` remain in `src/Utils/`; they are not separate public
-plotting modules.
-
-## Demo outputs
-
-The demos read example TIFF files under project-root `example_data/`.
-With saving enabled, the demo creates **`fullfile(pwd,'results')`** and invokes
-the utilities. Plot/export implementations are in `src/Utils/`; file handling
-is not added to the numerical functions.
-
-| Utility | Role |
-| --- | --- |
-| `save_demo_summary.m` | Compact CSV and MAT export; sFSC interpretation text |
-| `plot_correlation_curve.m`, `plot_sfrc_results.m` | sFRC curve display and optional PNG previews |
-| `plot_sfsc_results.m` | Resolution/DRI figures and optional PNG previews |
-| `plot_srfrc_results.m` | First-frame sjet comparison and one PNG per background group |
-| `save_srfrc_maps.m` | Final numeric-map TIFF export |
-| `imwritestack.m` | Shared float32 TIFF writer; optional image description |
-
-Plot helpers accept an empty directory to display without exporting. Saving
-numerical data does not require plotting. `src/Utils/imwritestack.m` is the shared float32 TIFF writer;
-`save_srfrc_maps.m` uses it to preserve numerical map values. The writer performs
-no normalization; map exports include nm units and page order in the description.
-The `demos/` folder contains `sFRC_demo.m`, `sFSC_demo.m` and `srFRC_demo.m`;
-the relevant helpers are in `src/Utils/`.
+The summary reports lateral/axial resolution (nm), E_DRI (%) and extrapolation status.
 
 | Content | Filename examples |
 | --- | --- |
-| Compact summary | `sFRC_results.csv`, `sFSC_results.csv`, `srFRC_results.csv` |
-| Numerical results / parameters | `sFRC_results.mat`, `sFSC_results.mat`, `srFRC_results.mat` |
-| E_DRI interpretation | `sFSC_E-DRI-guidance.txt` |
-| Optional previews | `sFRC_frame0001_correlation-curve.png`, `sFSC_lateral-axial-resolution.png`, `sFSC_DRI-elliptical-fit.png` |
-| Final numeric maps | `srFRC_bg1.2_resolution-map.tif`, `srFRC_manual-bg_resolution-map.tif` |
-| Per-frame map preview | `srFRC_frame0001_bg1.2_resolution-map.png` |
+| Summary / numerical results | `sFSC_results.csv`, `sFSC_results.mat` |
+| Interpretation | `sFSC_E-DRI-guidance.txt` |
+| Resolution preview | `sFSC_lateral-axial-resolution.png` |
+| Optional fitting preview | `sFSC_DRI-elliptical-fit.png` |
 
-Frame identifiers use `frame0001`; pairs use `pair0001-0002`. srFRC maps have
-axes `YXTB`; each background setting is exported as one multipage YXT TIFF.
-The `bg1.2` label is an Otsu multiplier; the actual intensity threshold is
-stored in `background_threshold` and `backgroundThresholds`. Manual background
-uses `manual-bg`. TIFF, MAT and summaries use the same final restored maps.
-Repeated runs overwrite matching filenames and leave other result files intact.
+## srFRC
+
+Spatially resolved local-resolution maps for 2D images and stacks.
+
+### srFRC input and calibration
+
+Use `(Y,X)` or `(Y,X,T)`. Supply the original scalar XY `pixelSize` in **µm**. In paired mode, adjacent frames are compared.
+
+### srFRC parameters
+
+| Parameter | Default | Meaning |
+| --- | --- | --- |
+| `pixelSize` | `0.02` | XY spacing in µm; replace with the acquisition value |
+| `singleFrame` | `true` | Generate a diagonal pair per frame; `false` uses adjacent frames |
+| `threshold` | `'3-sigma'` | Alternative: `'1/7 hard threshold'` |
+| `batchProcessing` | `true` | Process all frames/pairs |
+| `motionCorrection` | `false` | Align paired frames |
+| `blocksize` | `64` | Local window width in pixels |
+| `skip` | `2` | Step between analysis windows in pixels |
+| `adaptiveBackground` | `true` | Automatic Otsu-based background detection |
+| `monitorChange` | `false` | Compare different Otsu coefficients on the first frame/pair; disable Batch |
+| `backgroundIntensity` | `30` | Manual background threshold (0–255) when automatic/monitor modes are off |
+| `parallel` | `true` | Use parallel computation when available |
+| `meanFilterWidth` | `3` | Local correlation smoothing radius |
+| `boundary` | `true` | Apply background masking |
+| `amedianfilter` | `true` | Adaptive median filtering when `skip=1` |
+
+The selected `threshold` is the primary local criterion; internal fallback criteria are not additional user choices. Local curves are not extrapolated.
+
+### srFRC background settings
+
+`monitorChange=true` compares background thresholds using different Otsu coefficients on the first frame/pair and disables Batch. Otherwise, use automatic background detection or set `backgroundIntensity` manually.
+
+### srFRC stack batching and plotting
+
+With `batchProcessing=true`, an N-frame stack produces N single-frame results or N−1 adjacent-pair results. With `false`, only the first frame or pair is analyzed. The demo displays only the first result; Monitor displays its background comparisons.
+
+Numeric maps and summary tables retain every computed frame/pair.
+
+### srFRC results and saved files
+
+Summaries report the frame/pair, background setting and actual threshold, mean/min/max resolution (nm), and rFRC value. Statistics exclude zero-background pixels.
+
+| Content | Filename examples |
+| --- | --- |
+| Summary / numerical results | `srFRC_results.csv`, `srFRC_results.mat` |
+| Numerical maps | Separate Float32 TIFF files for each background setting |
+| Optional preview | First-frame resolution-map PNG |
+
+## Demo outputs
+
+The three `.m` demos read from `example_data/` and save into the current working directory's `results/` folder when `saveResults` is enabled. Core numerical functions neither plot nor save.
+
+| Demo | Purpose |
+| --- | --- |
+| `sFRC_demo.m` | Single-frame and paired-frame resolution analysis |
+| `sFSC_demo.m` | 3D lateral/axial resolution and DRI; optional Z-sampling comparison |
+| `srFRC_demo.m` | Background selection, batch processing and local maps |
+
+Plotting and export utilities are in `src/Utils/`. Re-running a demo may overwrite files with the same name.
