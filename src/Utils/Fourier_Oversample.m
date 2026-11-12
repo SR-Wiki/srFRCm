@@ -1,4 +1,4 @@
-function imgfl = Fourier_Oversample( imgstack, n)
+function imgfl = Fourier_Oversample_V2( imgstack, n)
 %***************************************************************************
 % Fourier interpolation 
 %***************************************************************************
@@ -54,7 +54,7 @@ for i=1:size(imgstack,3)
     img = padarray(img,ceil(padsize),'symmetric','pre');
     img = padarray(img,floor(padsize),'symmetric','post');
     newsz = round(n.*size(img)-(n-1));
-    imgl = fInterp_2D(img, newsz);
+    imgl = fInterp_2D_V2(img, newsz);
     size(imgl);
     imgfl(:,:,i) = imgl(idx(1):idx(1)+n(1)*imgsz(1)-1, idx(2):idx(2)+n(2)*imgsz(2)-1);
 end
