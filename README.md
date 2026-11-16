@@ -68,12 +68,12 @@ contains exactly three runnable examples: `sFRC_demo.m`, `sFSC_demo.m` and
 
 Download and extract the **example_data.zip** asset from
 [srFRCj Releases](https://github.com/SR-Wiki/srFRCj/releases/download/v1.0/example_data.zip) into the project-root
-`example_data/`, alongside `src/` and `demos/`. Edit the explicit path and calibrated pixel size in each
+`example_data/`, alongside `src/` and `demos/`. Edit the explicit path and pixel size in each
 demo if your files differ. 
 
+Run the demos from MATLAB after completing the setup above:
 
 ```matlab
-addpath('demos');
 sFRC_demo;
 sFSC_demo;
 srFRC_demo;
@@ -95,15 +95,15 @@ the three main functions in `src/` describe the inputs and returned data.
 
 | Parameter | Default / source | Description |
 | --- | --- | --- |
-| Pixel Size | image calibration or user input | Physical lateral sampling in um |
+| Pixel Size | user input | Physical lateral sampling in um |
 | If SingleFrame | `true` | Generates the complementary pair from one acquisition |
 
 ### sFSC
 
 | Parameter | Default / source | Description |
 | --- | --- | --- |
-| Pixel Size (XY) | image calibration or user input | Physical lateral voxel spacing in um |
-| Pixel Size (Z) | image calibration or user input | Physical axial voxel spacing in um |
+| Pixel Size (XY) | user input | Physical lateral voxel spacing in um |
+| Pixel Size (Z) | user input | Physical axial voxel spacing in um |
 | If SingleFrame | `true` | Enables single-volume pair generation |
 
 ### srFRC
