@@ -11,7 +11,6 @@ addpath(fullfile(rootDir,'src','Utils'),'-begin');
 assert_demo_helper_paths(rootDir,{'plot_sfrc_results','current_result_index','plot_correlation_curve','save_demo_summary'});
 
 inputFile=fullfile(rootDir,'example_data','Fig3a_Raw.tif');
-% Alternative input: fullfile(rootDir,'example_data','Fig2b_SD-SIM.tif');
 
 pixelSize=60/1000; % um
 singleFrame=false;
